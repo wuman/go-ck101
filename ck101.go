@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/PuerkitoBio/goquery"
+	"github.com/opesun/goquery"
 )
 
 const (
@@ -37,7 +37,7 @@ func GrabPage(url string) (*CK101Page, error) {
 		return nil, errors.New("supplied url is empty or invalid")
 	}
 
-	doc, err := goquery.NewDocument(url)
+	doc, err := goquery.ParseUrl(url)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch content, check your network connection. (%v)", err)
 	}
@@ -51,13 +51,19 @@ func GrabPage(url string) (*CK101Page, error) {
 	result.Title = strings.TrimSpace(result.Title)
 
 	// find the images
-	doc.Find("img[file]").Each(func(i int, s *goquery.Selection) {
-		url, _ := s.Attr("file")
-		if !strings.HasPrefix(url, "http") {
-			return
+	imgs := doc.Find("img['file']")
+	for _, img := range imgs {
+		for _, attr := range img.Attr {
+			if attr.Key != "file" {
+				continue
+			}
+			url := attr.Val
+			if !strings.HasPrefix(url, "http") {
+				continue
+			}
+			result.Imgs = append(result.Imgs, url)
 		}
-		result.Imgs = append(result.Imgs, url)
-	})
+	}
 
 	return result, nil
 }
