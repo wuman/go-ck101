@@ -1,4 +1,4 @@
-package main
+package ck101
 
 import (
 	"errors"
@@ -9,10 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/user"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -24,16 +22,14 @@ const (
 )
 
 var verbose bool
-var url string
 
 func init() {
 	flag.BoolVar(&verbose, "ck101.verbose", false, "verbose output")
-	flag.StringVar(&url, "ck101.url", "", "url to grab images from. should have pattern http://ck101.com/thread-2593278-1-1.html")
 }
 
 type CK101Page struct {
-	title string
-	imgs  []string
+	Title string
+	Imgs  []string
 }
 
 func GrabPage(url string) (*CK101Page, error) {
@@ -49,10 +45,10 @@ func GrabPage(url string) (*CK101Page, error) {
 	result := &CK101Page{}
 
 	// find the title
-	result.title = doc.Find("title").Text()
-	result.title = strings.Split(result.title, " - ")[0]
-	result.title = strings.Replace(result.title, "/", "", -1)
-	result.title = strings.TrimSpace(result.title)
+	result.Title = doc.Find("title").Text()
+	result.Title = strings.Split(result.Title, " - ")[0]
+	result.Title = strings.Replace(result.Title, "/", "", -1)
+	result.Title = strings.TrimSpace(result.Title)
 
 	// find the images
 	doc.Find("img[file]").Each(func(i int, s *goquery.Selection) {
@@ -60,7 +56,7 @@ func GrabPage(url string) (*CK101Page, error) {
 		if !strings.HasPrefix(url, "http") {
 			return
 		}
-		result.imgs = append(result.imgs, url)
+		result.Imgs = append(result.Imgs, url)
 	})
 
 	return result, nil
@@ -84,7 +80,7 @@ func GrabImages(page *CK101Page, targetDir string) error {
 	}
 
 	var wg sync.WaitGroup
-	for _, img := range page.imgs {
+	for _, img := range page.Imgs {
 		wg.Add(1)
 		go func(img string) {
 			defer wg.Done()
@@ -127,33 +123,4 @@ func grabImage(url, savepath string) error {
 	err = jpeg.Encode(w, m, &jpeg.Options{jpeg.DefaultQuality})
 
 	return err
-}
-
-func main() {
-	flag.Parse()
-
-	if url == "" || !strings.HasPrefix(url, "http") {
-		log.Fatalf("URL should be in the form of http://ck101.com/thread-2593278-1-1.html")
-	}
-
-	u, err := user.Current()
-	if err != nil {
-		log.Fatalf("Failed to get current user: %v", err)
-	}
-	basedir := filepath.Join(u.HomeDir, "Pictures/go-ck101/")
-	if err := mkdir(basedir); err != nil {
-		log.Fatalf("Unable to create directory: %s\n", basedir)
-	}
-	threadId := regexp.MustCompile("thread-(\\d+)-.*").FindStringSubmatch(path.Base(url))[1]
-
-	b, err := GrabPage(url)
-	if err != nil {
-		log.Fatalf("Failed to grab the page: %v", err)
-	}
-	if verbose {
-		log.Printf("title: %s\n", b.title)
-	}
-
-	targetDir := filepath.Join(basedir, fmt.Sprintf("%s - %s", threadId, b.title))
-	GrabImages(b, targetDir)
 }

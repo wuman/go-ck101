@@ -11,3 +11,6 @@ The tool scrapes a page on [CK101.com](http://ck101.com/) and stores all large
 images in your local home directory (`~/Pictures/go-ck101`).  This should work
 for most linux-based machines.
 
+In addition to being available as a CLI tool, the tool (due to request from
+a number of people :p) is now also avaialble in the form of a library to be 
+imported as part of a bigger project.
