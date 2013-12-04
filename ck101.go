@@ -1,13 +1,18 @@
 package ck101
 
 import (
+	"crypto/md5"
 	"errors"
 	"flag"
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,7 +29,7 @@ const (
 var verbose bool
 
 func init() {
-	flag.BoolVar(&verbose, "ck101.verbose", false, "verbose output")
+	flag.BoolVar(&verbose, "v", false, "verbose output")
 }
 
 type CK101Page struct {
@@ -32,12 +37,83 @@ type CK101Page struct {
 	Imgs  []string
 }
 
-func GrabPage(url string) (*CK101Page, error) {
+type CK101Lover struct {
+	username string
+	pwdhash  string
+	client   *http.Client
+}
+
+func NewCK101Lover(username, password string) *CK101Lover {
+	l := new(CK101Lover)
+	if username != "" && password != "" {
+		h := md5.New()
+		io.WriteString(h, password)
+		l.username = username
+		l.pwdhash = fmt.Sprintf("%x", h.Sum(nil))
+		if verbose {
+			log.Printf("credentials: %s %s\n", l.username, l.pwdhash)
+		}
+	}
+	return l
+}
+
+func (l *CK101Lover) authenticate() error {
+	if l.client != nil {
+		return nil
+	}
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return err
+	}
+
+	l.client = &http.Client{nil, nil, jar}
+
+	if l.username != "" && l.pwdhash != "" {
+		resp, err := l.client.PostForm("http://ck101.com/member.php?mod=logging&action=login&loginsubmit=yes&infloat=yes&lssubmit=yes&inajax=1",
+			url.Values{
+				"username":     {l.username},
+				"password":     {l.pwdhash},
+				"quickforward": {"yes"},
+				"handlekey":    {"ls"},
+			})
+		if err != nil {
+			l.username = ""
+			l.pwdhash = ""
+			return err
+		}
+		defer resp.Body.Close()
+	}
+
+	return nil
+}
+
+func (l *CK101Lover) get(url string) (string, error) {
+	// authenticate if possible
+	l.authenticate()
+
+	resp, err := l.client.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func (l *CK101Lover) GrabPage(url string) (*CK101Page, error) {
 	if url == "" {
 		return nil, errors.New("supplied url is empty or invalid")
 	}
 
-	doc, err := goquery.ParseUrl(url)
+	page, err := l.get(url)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch content, check your network connection. (%v)", err)
+	}
+	doc, err := goquery.ParseString(page)
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch content, check your network connection. (%v)", err)
 	}

@@ -14,9 +14,13 @@ import (
 )
 
 var url string
+var username string
+var password string
 
 func init() {
-	flag.StringVar(&url, "ck101.url", "", "url to grab images from. should have pattern http://ck101.com/thread-2593278-1-1.html")
+	flag.StringVar(&url, "url", "", "url to grab images from. should have pattern http://ck101.com/thread-2593278-1-1.html")
+	flag.StringVar(&username, "u", "", "username")
+	flag.StringVar(&password, "p", "", "password")
 }
 
 func main() {
@@ -37,7 +41,9 @@ func main() {
 	}
 	threadId := matches[1]
 
-	b, err := ck101.GrabPage(url)
+	l := ck101.NewCK101Lover(username, password)
+
+	b, err := l.GrabPage(url)
 	if err != nil {
 		log.Fatalf("Failed to grab the page: %v", err)
 	}
