@@ -50,9 +50,6 @@ func NewCK101Lover(username, password string) *CK101Lover {
 		io.WriteString(h, password)
 		l.username = username
 		l.pwdhash = fmt.Sprintf("%x", h.Sum(nil))
-		if verbose {
-			log.Printf("credentials: %s %s\n", l.username, l.pwdhash)
-		}
 	}
 	return l
 }
@@ -153,6 +150,10 @@ func mkdir(dir string) error {
 }
 
 func GrabImages(page *CK101Page, targetDir string) error {
+	if page == nil || len(page.Imgs) == 0 {
+		return errors.New("No images to fetch")
+	}
+
 	if err := mkdir(targetDir); err != nil {
 		log.Fatalf("Unable to create directory: %s\n", targetDir)
 		return err

@@ -10,17 +10,16 @@ import (
 	"regexp"
 	"strings"
 
+	"code.google.com/p/gopass"
 	ck101 "github.com/wuman/go-ck101"
 )
 
 var url string
-var username string
-var password string
+var username, password string
 
 func init() {
 	flag.StringVar(&url, "url", "", "url to grab images from. should have pattern http://ck101.com/thread-2593278-1-1.html")
 	flag.StringVar(&username, "u", "", "username")
-	flag.StringVar(&password, "p", "", "password")
 }
 
 func main() {
@@ -41,6 +40,12 @@ func main() {
 	}
 	threadId := matches[1]
 
+	if username != "" {
+		password, err = gopass.GetPass("Enter password: ")
+		if err != nil {
+			log.Fatal("A password should be entered.")
+		}
+	}
 	l := ck101.NewCK101Lover(username, password)
 
 	b, err := l.GrabPage(url)
@@ -49,5 +54,8 @@ func main() {
 	}
 
 	targetDir := filepath.Join(basedir, fmt.Sprintf("%s - %s", threadId, b.Title))
-	ck101.GrabImages(b, targetDir)
+	err = ck101.GrabImages(b, targetDir)
+	if err != nil {
+		log.Fatalf("Failed to grab images: %v", err)
+	}
 }
