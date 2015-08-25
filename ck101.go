@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/opesun/goquery"
 )
@@ -64,7 +65,7 @@ func (l *CK101Lover) authenticate() error {
 		return err
 	}
 
-	l.client = &http.Client{nil, nil, jar}
+	l.client = &http.Client{nil, nil, jar, time.Second}
 
 	if l.username != "" && l.pwdhash != "" {
 		resp, err := l.client.PostForm("http://ck101.com/member.php?mod=logging&action=login&loginsubmit=yes&infloat=yes&lssubmit=yes&inajax=1",
